@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>전자칠판 — 경우의 수 수업 현황</title>
+<link href="https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700;800&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --p:#4338ca; --pl:#818cf8; --pp:#1e1b4b;
+  --g1:#7c3aed; --g2:#0369a1; --g3:#047857;
+  --amber:#d97706; --amberl:#fef3c7;
+  --green:#10b981; --red:#ef4444; --blue:#3b82f6;
+  --bg:#0f172a; --bg2:#1e293b; --bg3:#334155;
+  --txt:#f1f5f9; --txt2:#94a3b8; --txt3:#64748b;
+  --bdr:#334155;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif;overflow:hidden}
+
+/* SETUP SCREEN */
+#setup{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:100}
+#setup.hidden{display:none}
+.setup-box{background:var(--bg2);border:1px solid var(--bdr);border-radius:16px;padding:32px 28px;width:480px;display:flex;flex-direction:column;gap:18px}
+.setup-box h2{font-family:'Nanum Gothic',sans-serif;font-size:20px;font-weight:800;color:var(--txt);text-align:center}
+.setup-box p{font-size:13px;color:var(--txt2);text-align:center;line-height:1.6}
+.setup-box label{font-size:12px;font-weight:700;color:var(--txt3);display:block;margin-bottom:5px}
+.setup-box input{width:100%;background:var(--bg3);border:1px solid var(--bdr);border-radius:8px;padding:10px 12px;font-size:14px;color:var(--txt);outline:none;font-family:'Noto Sans KR',sans-serif;transition:border-color .15s}
+.setup-box input:focus{border-color:var(--pl)}
+.setup-btn{padding:13px;background:var(--p);color:white;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:background .15s;width:100%}
+.setup-btn:hover{background:#3730a3}
+.setup-hint{font-size:12px;color:var(--txt3);text-align:center;line-height:1.6}
+
+/* MAIN LAYOUT */
+#main{height:100vh;display:flex;flex-direction:column;overflow:hidden}
+.top-bar{background:var(--bg2);border-bottom:1px solid var(--bdr);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.top-bar-left{display:flex;align-items:center;gap:14px}
+.top-bar h1{font-family:'Nanum Gothic',sans-serif;font-size:17px;font-weight:800;color:var(--txt)}
+.live-badge{display:flex;align-items:center;gap:6px;background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.3);color:var(--green);font-size:12px;font-weight:700;padding:3px 10px;border-radius:12px}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:blink 1.2s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.top-bar-right{display:flex;align-items:center;gap:12px}
+.top-clock{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--txt2)}
+.settings-btn{background:var(--bg3);border:1px solid var(--bdr);color:var(--txt2);border-radius:8px;padding:6px 14px;font-size:13px;cursor:pointer;font-family:'Noto Sans KR',sans-serif}
+
+/* STAT ROW */
+.stat-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;padding:14px 20px;flex-shrink:0}
+.stat-card{background:var(--bg2);border:1px solid var(--bdr);border-radius:12px;padding:12px 16px;display:flex;flex-direction:column;gap:4px}
+.stat-card .sn{font-family:'Nanum Gothic',sans-serif;font-size:26px;font-weight:800;color:var(--pl)}
+.stat-card .sl{font-size:11px;color:var(--txt3)}
+
+/* STEP PROGRESS */
+.step-overview{padding:0 20px 12px;flex-shrink:0}
+.step-overview h3{font-size:12px;font-weight:700;color:var(--txt3);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px}
+.step-bar-row{display:flex;gap:4px}
+.step-seg{flex:1;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:rgba(255,255,255,.5);transition:all .3s;position:relative}
+.step-seg .seg-count{position:absolute;top:-18px;font-size:11px;font-weight:700;color:var(--txt2)}
+
+/* GROUPS GRID */
+.groups-area{flex:1;overflow:hidden;padding:0 20px 16px;display:flex;flex-direction:column;gap:10px}
+.groups-area h3{font-size:12px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;flex-shrink:0}
+.groups-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;flex:1;overflow:hidden}
+
+/* GROUP CARD */
+.g-card{background:var(--bg2);border:1px solid var(--bdr);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;transition:border-color .3s}
+.g-card.active{border-color:#4338ca}
+.g-card.submitted{border-color:var(--green)}
+.g-card-top{padding:12px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--bdr)}
+.g-card-top-left{display:flex;align-items:center;gap:10px}
+.g-num-badge{width:32px;height:32px;border-radius:50%;background:#4338ca;color:white;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;font-family:'Nanum Gothic',sans-serif}
+.g-name{font-size:14px;font-weight:700;color:var(--txt)}
+.g-status-badge{font-size:11px;font-weight:700;padding:3px 9px;border-radius:10px}
+.g-card-prog{padding:10px 14px;border-bottom:1px solid var(--bdr)}
+.g-prog-row{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.g-prog-label{font-size:11px;color:var(--txt3);width:70px;flex-shrink:0}
+.g-prog-bar{flex:1;height:5px;background:var(--bg3);border-radius:4px;overflow:hidden}
+.g-prog-fill{height:100%;border-radius:4px;background:var(--pl);transition:width .5s ease}
+.g-prog-pct{font-size:11px;color:var(--txt2);width:30px;text-align:right}
+
+/* 7-step dots */
+.g-steps{display:flex;gap:3px;padding:0 14px 10px}
+.g-step-dot{flex:1;height:5px;border-radius:3px;transition:background .3s}
+
+/* 답변 영역 */
+.g-answers{flex:1;overflow-y:auto;padding:10px 14px 12px;display:flex;flex-direction:column;gap:6px;scrollbar-width:thin;scrollbar-color:var(--bg3) transparent}
+.g-answers::-webkit-scrollbar{width:3px}
+.g-answers::-webkit-scrollbar-thumb{background:var(--bg3)}
+.answer-chip{background:var(--bg3);border-radius:7px;padding:7px 10px}
+.answer-chip .ac-label{font-size:10px;color:var(--txt3);margin-bottom:3px;font-weight:700}
+.answer-chip .ac-text{font-size:12px;color:var(--txt2);line-height:1.5;word-break:break-all}
+.answer-chip .ac-text.empty{color:var(--bg3);font-style:italic}
+.no-data{font-size:12px;color:var(--txt3);text-align:center;padding:16px 0;flex:1;display:flex;align-items:center;justify-content:center}
+
+/* NEW ANSWER FLASH */
+@keyframes flash{0%{background:rgba(99,102,241,.25)}100%{background:var(--bg3)}}
+.answer-chip.flash{animation:flash .8s ease}
+
+/* WAITING OVERLAY */
+.g-card .waiting{display:flex;align-items:center;justify-content:center;flex:1;flex-direction:column;gap:8px;padding:16px}
+.waiting-icon{font-size:28px;opacity:.3}
+.waiting-text{font-size:12px;color:var(--txt3)}
+
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1e293b;color:white;padding:10px 20px;border-radius:20px;font-size:14px;font-weight:500;z-index:999;box-shadow:0 4px 20px rgba(0,0,0,.5);opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+
+<!-- SETUP -->
+<div id="setup">
+  <div class="setup-box">
+    <div style="font-size:42px;text-align:center">📺</div>
+    <h2>전자칠판 연결 설정</h2>
+    <p>학생 아이패드와 같은 Firebase 프로젝트 정보를 입력하세요.<br>이후 자동으로 실시간 데이터를 수신합니다.</p>
+    <div>
+      <label>Firebase 프로젝트 ID</label>
+      <input type="text" id="b-pid" placeholder="my-class-12345" autocomplete="off" spellcheck="false">
+    </div>
+    <div>
+      <label>API Key</label>
+      <input type="text" id="b-key" placeholder="AIzaSy..." autocomplete="off" spellcheck="false">
+    </div>
+    <button class="setup-btn" onclick="connectFirebase()">📡 연결하고 수업 시작</button>
+    <div class="setup-hint">설정은 이 브라우저에 저장됩니다.<br>학생 앱과 동일한 값을 입력해야 합니다.</div>
+  </div>
+</div>
+
+<!-- MAIN BOARD -->
+<div id="main">
+  <div class="top-bar">
+    <div class="top-bar-left">
+      <h1>📐 경우의 수 — 합의·곱의 법칙 수업 현황</h1>
+      <div class="live-badge"><div class="live-dot"></div>LIVE</div>
+    </div>
+    <div class="top-bar-right">
+      <div class="top-clock" id="top-clock"></div>
+      <button class="settings-btn" onclick="showSetup()">⚙️ 설정</button>
+    </div>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-card"><div class="sn" id="st-active">0</div><div class="sl">접속 중</div></div>
+    <div class="stat-card"><div class="sn" id="st-submit">0</div><div class="sl">제출 완료</div></div>
+    <div class="stat-card"><div class="sn" id="st-avg">—</div><div class="sl">평균 진행 단계</div></div>
+    <div class="stat-card"><div class="sn" id="st-writing">0</div><div class="sl">답변 작성 중</div></div>
+    <div class="stat-card"><div class="sn" id="st-complete">0</div><div class="sl">전 단계 완료</div></div>
+  </div>
+
+  <div class="step-overview">
+    <h3>단계별 진행 분포</h3>
+    <div class="step-bar-row" id="step-bar-overview"></div>
+  </div>
+
+  <div class="groups-area">
+    <h3>모둠별 실시간 현황</h3>
+    <div class="groups-grid" id="groups-grid"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getDatabase, ref, onValue } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+
+const STEP_LABELS = ['①복습','②합개념','③합문제','④합역량','⑤곱개념','⑥곱문제','⑦곱역량'];
+const STEP_COLORS = ['#7c3aed','#0369a1','#0369a1','#0369a1','#047857','#047857','#047857'];
+const KEY_ANSWERS = [
+  {id:'r_q1', label:'복습 Q1'},
+  {id:'r_q2', label:'복습 Q2'},
+  {id:'s_explore', label:'합의 법칙 탐구'},
+  {id:'s_rfinal', label:'합의 법칙 최종 풀이'},
+  {id:'s_rpresent', label:'합의 법칙 발표'},
+  {id:'m_explore', label:'곱의 법칙 탐구'},
+  {id:'m_rfinal', label:'곱의 법칙 최종 풀이'},
+  {id:'m_rpresent', label:'곱의 법칙 발표'},
+];
+
+let groupData = {}; // group num -> data
+let prevData = {};
+
+function connectFirebase() {
+  const pid = document.getElementById('b-pid').value.trim();
+  const key = document.getElementById('b-key').value.trim();
+  if (!pid || !key) { showToast('⚠️ 두 항목을 입력해주세요'); return; }
+  try { localStorage.setItem('b_pid', pid); localStorage.setItem('b_key', key); } catch(e){}
+  startFirebase(pid, key);
+}
+window.connectFirebase = connectFirebase;
+
+function startFirebase(pid, key) {
+  try {
+    const app = initializeApp({ apiKey: key, databaseURL: `https://${pid}-default-rtdb.firebaseio.com`, projectId: pid });
+    const db = getDatabase(app);
+    const r = ref(db, 'class/groups');
+    onValue(r, snap => {
+      const val = snap.val() || {};
+      prevData = JSON.parse(JSON.stringify(groupData));
+      // merge — only update groups that have data
+      for (let g = 1; g <= 6; g++) {
+        if (val[g]) groupData[g] = val[g];
+        else if (!groupData[g]) groupData[g] = null;
+      }
+      renderAll();
+    });
+    document.getElementById('setup').classList.add('hidden');
+    showToast('📡 Firebase 연결 완료! 실시간 수신 중...');
+  } catch(e) {
+    showToast('❌ 연결 실패: ' + e.message);
+  }
+}
+
+function showSetup() {
+  const pid = localStorage.getItem('b_pid')||'';
+  const key = localStorage.getItem('b_key')||'';
+  document.getElementById('b-pid').value = pid;
+  document.getElementById('b-key').value = key;
+  document.getElementById('setup').classList.remove('hidden');
+}
+window.showSetup = showSetup;
+
+// auto-load saved config
+try {
+  const pid = localStorage.getItem('b_pid');
+  const key = localStorage.getItem('b_key');
+  if (pid && key) { document.getElementById('b-pid').value=pid; document.getElementById('b-key').value=key; startFirebase(pid, key); }
+} catch(e){}
+
+function renderAll() {
+  renderStats();
+  renderStepOverview();
+  renderGroups();
+}
+
+function renderStats() {
+  let active=0, submit=0, totalStep=0, stepCount=0, writing=0, complete=0;
+  for (let g=1;g<=6;g++) {
+    const d = groupData[g];
+    if (!d) continue;
+    const age = Date.now() - (d.updatedAt||0);
+    if (age < 3600000) active++;
+    if (d.submitted) submit++;
+    if (d.step !== undefined) { totalStep+=d.step; stepCount++; }
+    if (age < 30000) writing++;
+    if (d.step >= 6) complete++;
+  }
+  document.getElementById('st-active').textContent = active;
+  document.getElementById('st-submit').textContent = submit;
+  document.getElementById('st-avg').textContent = stepCount>0 ? (totalStep/stepCount).toFixed(1) : '—';
+  document.getElementById('st-writing').textContent = writing;
+  document.getElementById('st-complete').textContent = complete;
+}
+
+function renderStepOverview() {
+  const counts = new Array(7).fill(0);
+  for (let g=1;g<=6;g++) {
+    const d = groupData[g];
+    if (d && d.step !== undefined) counts[Math.min(d.step,6)]++;
+  }
+  const max = Math.max(...counts, 1);
+  const html = STEP_LABELS.map((lbl,i) => {
+    const pct = Math.round(counts[i]/6*100);
+    const h = Math.round(counts[i]/max*22)+6;
+    return `<div class="step-seg" style="background:${counts[i]>0?STEP_COLORS[i]+'99':'#1e293b'};height:${h}px">
+      <div class="seg-count">${counts[i]>0?counts[i]+'모둠':''}</div>
+      <span style="font-size:9px;opacity:.8">${lbl}</span>
+    </div>`;
+  }).join('');
+  document.getElementById('step-bar-overview').innerHTML = html;
+}
+
+function renderGroups() {
+  const grid = document.getElementById('groups-grid');
+  let html = '';
+  for (let g=1;g<=6;g++) {
+    const d = groupData[g];
+    html += renderGroupCard(g, d);
+  }
+  grid.innerHTML = html;
+}
+
+function renderGroupCard(g, d) {
+  if (!d) {
+    return `<div class="g-card" id="gc-${g}">
+      <div class="g-card-top">
+        <div class="g-card-top-left">
+          <div class="g-num-badge">${g}</div>
+          <div class="g-name">${g}모둠</div>
+        </div>
+        <div class="g-status-badge" style="background:#1e293b;color:#64748b">대기 중</div>
+      </div>
+      <div class="waiting"><div class="waiting-icon">💤</div><div class="waiting-text">아직 접속하지 않았어요</div></div>
+    </div>`;
+  }
+
+  const step = d.step || 0;
+  const submitted = !!d.submitted;
+  const age = Date.now() - (d.updatedAt||0);
+  const isActive = age < 3600000;
+  const isWriting = age < 30000;
+  const pct = Math.round(step/6*100);
+
+  const statusBg = submitted ? 'rgba(16,185,129,.15)' : isWriting ? 'rgba(99,102,241,.15)' : isActive ? 'rgba(59,130,246,.1)' : '#1e293b';
+  const statusColor = submitted ? '#10b981' : isWriting ? '#818cf8' : isActive ? '#60a5fa' : '#64748b';
+  const statusText = submitted ? '✅ 제출완료' : isWriting ? '✍️ 작성중' : isActive ? '▶ 진행중' : '대기';
+
+  const cardBorderClass = submitted ? 'submitted' : isActive ? 'active' : '';
+
+  // 7 step dots
+  const dots = Array.from({length:7},(_,i)=>{
+    const bg = i<step ? STEP_COLORS[i] : i===step ? STEP_COLORS[i]+'66' : '#334155';
+    return `<div class="g-step-dot" style="background:${bg}"></div>`;
+  }).join('');
+
+  // key answers — show non-empty ones
+  const answers = KEY_ANSWERS.map(({id,label}) => {
+    const txt = (d[id]||'').trim();
+    const preview = txt ? txt.slice(0,60)+(txt.length>60?'…':'') : '';
+    if (!preview) return '';
+    const isNew = prevData[g] && (prevData[g][id]||'') !== (d[id]||'');
+    return `<div class="answer-chip${isNew?' flash':''}">
+      <div class="ac-label">${label}</div>
+      <div class="ac-text">${escHtml(preview)}</div>
+    </div>`;
+  }).filter(Boolean).join('');
+
+  const currentStepLabel = STEP_LABELS[Math.min(step,6)];
+
+  return `<div class="g-card ${cardBorderClass}" id="gc-${g}">
+    <div class="g-card-top">
+      <div class="g-card-top-left">
+        <div class="g-num-badge">${g}</div>
+        <div>
+          <div class="g-name">${g}모둠</div>
+          <div style="font-size:11px;color:#64748b;margin-top:1px">${currentStepLabel}</div>
+        </div>
+      </div>
+      <div class="g-status-badge" style="background:${statusBg};color:${statusColor}">${statusText}</div>
+    </div>
+    <div class="g-card-prog">
+      <div class="g-prog-row">
+        <div class="g-prog-label">진행도</div>
+        <div class="g-prog-bar"><div class="g-prog-fill" style="width:${pct}%"></div></div>
+        <div class="g-prog-pct">${step}/6</div>
+      </div>
+    </div>
+    <div class="g-steps">${dots}</div>
+    <div class="g-answers">
+      ${answers || '<div class="no-data">아직 입력된 답변이 없어요</div>'}
+    </div>
+  </div>`;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/\n/g,' ');
+}
+
+function showToast(msg) {
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+// Clock
+function tick() {
+  const n=new Date(); const el=document.getElementById('top-clock');
+  if(el) el.textContent=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')+':'+String(n.getSeconds()).padStart(2,'0');
+}
+tick(); setInterval(tick, 1000);
+
+// Initial render (empty state)
+renderAll();
+</script>
+</body>
+</html>
